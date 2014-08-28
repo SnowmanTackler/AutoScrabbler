@@ -1,0 +1,121 @@
+<html> 
+	<head>
+		<script language="JavaScript">
+			function savePermCookie()
+			{
+				setCookie("SavedGames", getCookie("SavedGames"), 30);
+			}
+	
+			function getCookie(c_name)
+			{
+				var i,x,y,ARRcookies=document.cookie.split(";");
+				for (i=0;i<ARRcookies.length;i++)
+				{
+					x=ARRcookies[i].substr(0,ARRcookies[i].indexOf("="));
+				 	y=ARRcookies[i].substr(ARRcookies[i].indexOf("=")+1);
+				  	x=x.replace(/^\s+|\s+$/g,"");
+					if (x==c_name)
+					{
+				    	return unescape(y);
+				    }
+			  	}
+			}
+			
+			function setCookie(c_name,value,exdays)
+			{
+				var exdate=new Date();
+				exdate.setDate(exdate.getDate() + exdays);
+				var c_value=escape(value) + ((exdays==null) ? "" : "; expires="+exdate.toUTCString());
+				document.cookie=c_name + "=" + c_value;
+			}
+		</script>
+
+		<META NAME="Description" CONTENT="This program calculates and displays the highest scoring word for any given scrabble board & hand combination. Also works for words with friends.  Utilizes three dictionaries: TWL, SOWPODS, and Word With Friends (modified ENABLE).">
+		
+		<style>
+			table
+			{
+				border-collapse:collapse;
+			}
+			
+			body
+			{
+				background-color:#FFFFFF
+			}
+			
+			setFont
+			{
+				font-family:Arial,sans-serif;
+				font-size:14;
+			}
+			
+			setFontCredit
+			{
+				font-family:Arial,sans-serif;
+				font-size:12;
+			}
+		</style>
+		
+		<title>Auto Scrabbler</title>
+				
+	</head>
+	
+	<body>
+		<div id="webBar" align='center' style='position:absolute; top:0; left:0; width:100%;'>
+			<img src="docs/AutoScrabbler/bar.png"/>
+		</div>
+		
+		<div id="main" style='position:relative; top:100; left:0; height:530;'>
+			<center>
+				<table>
+					<tr>
+						<td width='200'>
+							<setFont>
+								<img src="docs/AutoScrabbler/labelAbout.png"/><br>
+								This program calculates and displays the highest scoring word for any given scrabble board & hand combination.<br>
+								<br>
+								<img src="docs/AutoScrabbler/labelTheDictionaries.png"/><br>
+								- <a href="http://en.wikipedia.org/wiki/Official_Tournament_and_Club_Word_List">TWL</a><br> 
+								- <a href="http://en.wikipedia.org/wiki/SOWPODS">SOWPODS</a><br>
+								<br>
+								<img src="docs/AutoScrabbler/labelSuggestions.png"/><br>
+								autoscrabbler@gmail.com<br>
+								<br>
+								<br>
+								<font size="2"><i>Sam Seifert</i></font><br>
+								<br>
+								<br>
+								<br>
+								<br>
+							</setFont>
+						</td>
+						<td width='05'>
+						</td>
+						<td>
+							<applet code="autoscrabbler.mainAppletCookie" width=600 name=autoscrabbler height=475 archive="docs/AutoScrabbler/AutoScrabbler-All.jar" MAYSCRIPT/></applet>
+						</td>
+					</tr>
+				</table>
+				<br>
+				<br>
+				<br>
+				Not working? Make sure you have the <a href="http://www.java.com/getjava/">latest version of Java!</a>
+			</center>
+		</div>
+											
+		<script type="text/javascript">
+			var sc_project=6554668; 
+			var sc_invisible=1; 
+			var sc_security="5e1861ad"; 
+		</script>
+		<script type="text/javascript" src="http://www.statcounter.com/counter/counter.js"></script>
+		<noscript>
+		<div
+			class="statcounter"><a title="hit counter for tumblr"
+			href="http://statcounter.com/tumblr/" target="_blank"><img
+			class="statcounter"
+			src="http://c.statcounter.com/6554668/0/5e1861ad/1/"
+			alt="hit counter for tumblr" ></a></div>
+		</noscript>
+	</body>
+</html>
