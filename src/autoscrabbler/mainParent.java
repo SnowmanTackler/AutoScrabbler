@@ -20,7 +20,7 @@ public class mainParent
     private static main parent;
 
     public static void myStart(main Papa)
-    {
+    {        
         parent = Papa;
         // Size of window.
         Dimension d = new Dimension(600, 475);

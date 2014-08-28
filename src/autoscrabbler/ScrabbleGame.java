@@ -40,25 +40,25 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
                         answerColor   = Color.WHITE, // Tile color of best answer bricks
                         tileColor     = new Color (220,220,220); // Tile color of non-bonus unused tiles
 
-    private String messageText[] = {"", ""}; // Displays "welcom" and elapsed time and best word shinannigans
+    private final String messageText[] = {"", ""}; // Displays "welcom" and elapsed time and best word shinannigans
     
     public char let[][]        = new char[15][15]; // current letters on board
     public Color letColors[][] = new Color[15][15]; // current color of letters on board
-    private Color baseColors[][] = new Color[15][15]; // base color of tile on a board (changes based on GAME type only)
+    private final Color baseColors[][] = new Color[15][15]; // base color of tile on a board (changes based on GAME type only)
     public Color tileColors[][] = new Color[15][15]; // current color of board tiles
 
     // User Interface
     public JTextField input        = new JTextField(); // user input for their hand
     private JTextField dInput      = new JTextField(); // user input to look up a word
 
-    private JCheckBox boardChecks[] = new JCheckBox[5], // Saved game selection check boxes.
-                      gameTypeChecks[] = new JCheckBox[2], // Game type selection check boxes.
-                      dictChecks[] = new JCheckBox[Dictionary.dictNames.length]; // Dict select check boxes
+    private final JCheckBox boardChecks[] = new JCheckBox[5], // Saved game selection check boxes.
+                            gameTypeChecks[] = new JCheckBox[2], // Game type selection check boxes.
+                            dictChecks[] = new JCheckBox[3]; // Dict select check boxes
     
-    private JButton reset = new JButton("Clear"), // Clears board of best answer, (if there is none) clears board completely
-                    submit = new JButton("Play"); // Plays a found word.
+    private final JButton reset = new JButton("Clear"), // Clears board of best answer, (if there is none) clears board completely
+                          submit = new JButton("Play"); // Plays a found word.
 
-    private Color barColor = Color.WHITE; // Color of side bar.
+    private final Color barColor = Color.WHITE; // Color of side bar.
 
     private int selectX = 7, selectY = 7; // Board cursor location (in tiles)
     boolean selectShowing = false; // board bool
@@ -66,7 +66,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
     private boolean lastD = true; // Last written direction, horizontal is true, vertical is false
 
     // Game type labels, used to switch Boards
-    public static final String gameTypes[] = {"Classic Scrabble", "Words With Friends"};
+    public static final String gameTypes[] = {"Scrabble", "Words With Friends"};
 
     
     // Starting messages for user inputs.
@@ -128,7 +128,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
             tempLabel = new JLabel("Dictionary:");                  tempLabel.setFont(FontLoader.getSecondaryFont());   mainRight.add(tempLabel);
             for (int i = 0; i < dictChecks.length; i++)
             {
-                dictChecks[i] = new JCheckBox(Dictionary.dictNames[i]);
+                dictChecks[i] = new JCheckBox(Dictionary.getforint(i).toString());
                 dictChecks[i].setFont(FontLoader.getSecondaryFont());
                 dictChecks[i].setBackground(barColor);
                 mainRight.add(dictChecks[i]);
@@ -335,12 +335,12 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
     }
 
     // Erases old best answer and draws a new one.
-    public void newBestAnswer(int x, int y, boolean isVertical, String word) 
+    public synchronized void newBestAnswer(int x, int y, boolean isVertical, char[] word) 
     {            
         clearOldAnswer();
 
         int a = 0, b = 0;
-        for (int p = 0; p < word.length(); p++)
+        for (int p = 0; p < word.length; p++)
         {            
             if (isVertical)
                 b = p;
@@ -350,7 +350,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
             if (let[x+a][y+b] == ' ')
             {
                 tileColors[x+a][y+b] = answerColor;
-                Character current = word.charAt(p);
+                Character current = word[p];
 
                 if (Character.isUpperCase(current))
                     letColors[x+a][y+b] = textColorWild;
@@ -360,7 +360,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
                 let[x+a][y+b] = current;
             }
         }
-
+        
         super.repaint();
     }
 
@@ -652,7 +652,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
 
         // Color signifies a valid word
         if (newInput.length() < 2 || newInput.length() > 15)    { dInput.setSelectedTextColor(Color.RED); }
-        else if (Dictionary.isValid(newInput))                  { dInput.setSelectedTextColor(Color.GREEN); }
+        else if (Dictionary.CheckWord(newInput))      { dInput.setSelectedTextColor(Color.GREEN); }
         else                                                    { dInput.setSelectedTextColor(Color.RED); }
     }
 
@@ -683,10 +683,13 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
     }
 
     // Get dictionary type
-    public String getDictType()
+    public Dictionary.DictType getDictType()
     {
-        for (int i = 0; i < dictChecks.length; i++) if (dictChecks[i].isSelected()) return dictChecks[i].getText();
-        return null;
+        for (int i = 0; i < dictChecks.length; i++)
+            if (dictChecks[i].isSelected())
+                return Dictionary.getforint(i);
+        
+        return Dictionary.DictType.NotSet;
     }
 
 

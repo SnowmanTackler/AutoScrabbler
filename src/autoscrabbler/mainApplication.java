@@ -15,17 +15,28 @@ public class mainApplication extends JFrame implements main
     // Entry point
     public static void main(String[] args)
     {
-        new mainApplication();
+        mainApplication ma = new mainApplication();
     }
 
     // Creates a frame, and if security check, starts program.
     public mainApplication()
-    {
+    {                 
         super();
         super.setDefaultCloseOperation(EXIT_ON_CLOSE);
-
+              
         String myComputer = System.getProperty("user.name");
 
+        /*
+        System.out.println("A:" + ((int)'A'));
+        System.out.println("B:" + ((int)'B'));
+        System.out.println("Y:" + ((int)'Y'));
+        System.out.println("Z:" + ((int)'Z'));
+        System.out.println("a:" + ((int)'a'));
+        System.out.println("b:" + ((int)'b'));
+        System.out.println("y:" + ((int)'y'));
+        System.out.println("z:" + ((int)'z'));
+        */
+        
         // MUHAHA ONLY I CAN RUN THIS CLASS...UNLESS your reading this...
         if (myComputer.equals("Sam"))
         {

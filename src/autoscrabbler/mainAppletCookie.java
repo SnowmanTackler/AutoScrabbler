@@ -23,10 +23,7 @@ public class mainAppletCookie extends JApplet implements main
     @Override
     public void init()
     {
-        String domainName = "";
-        domainName = this.getClass().getResource("").toString();
-        if (domainName.contains("autoscrabbler.com"))
-            mainParent.myStart(this);
+        mainParent.myStart(this);
     }
 
     // Read and return saved cookie

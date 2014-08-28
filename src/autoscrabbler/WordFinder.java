@@ -9,90 +9,109 @@ import java.awt.Color;
 
 public class WordFinder extends Thread
 {
-    private static ScrabbleGame game;
+    private static ScrabbleGame _ScrabbleGame;
     
     public static void myStart(ScrabbleGame runningScrabbleGame)
     {
-        // Static thread rememebers parent and children.
-        game = runningScrabbleGame;
-        
-        // The threads need to be started 
-        workers[0] = new WordFinder(diesImmediately);
-        workers[1] = new WordFinder(diesImmediately);
-        workers[2] = new WordFinder(diesImmediately);
+        WordFinder._ScrabbleGame = runningScrabbleGame;
+        WordFinder.workers[0] = new WordFinder(SearchType.DiesImmediately);
+        WordFinder.workers[1] = new WordFinder(SearchType.DiesImmediately);
+        WordFinder.workers[2] = new WordFinder(SearchType.DiesImmediately);
     }
 
-    private static WordFinder workers[] = new WordFinder[3];
-
-    private static long startTime; // Start time of a word
-    
-    private static boolean isWWF; // Whether or not the game type is WWF, matters for storing.
-    
-    private static final String SearchHorizontal = "0xD5", // Stores type of thread, should be int but I don't care
-                               SearchVertical = "0xEE",
-                               SearchNewGame = "0x9A",
-                               diesImmediately = "0x05",
-                               haventFoundWordsMessage = "I haven't found any words yet!", // Beginning message
-                               didntFindWordsMessage = "No valid words."; // other beginning message
-
-    private static String input; // Users hand
-
-    private static char let[][] = new char[15][15]; // threads store their own board chars
-                                                    // so they don't change during "live score update"
-    
-    private static Color tile[][] = new Color[15][15]; // same with colors.
-    
+    private static final WordFinder workers[] = new WordFinder[3];
     private static volatile int bestScore = -1; // stores best scored word score
-    private static volatile String bestWord = ""; // stores best scored word
+    private static volatile int bestCount = -1; // stores best scored word score
+    private static char[] bestWord = new char[0]; // stores best scored word
+    private static long startTime; // Start time of a word    
     
-    private static volatile WordFinder currentWritingHighScore = null; // stores current thread editing high score.
-                                                                       // only one thread can edit at a time 
-    
-    private static boolean killAllNow = false; // stops active threads when pulled high
+    private static final String haventFoundWordsMessage = "I haven't found any words yet!", // Beginning message
+                                didntFindWordsMessage = "No valid words."; // other beginning message
 
-    private boolean alive = true; // is the thread alive?
-    private String type; // what type is the thread? (either vert, horiz or NG)
-    private String scoreSurround[]; // Surround words
-    private int    cLoc[] = new int[2]; // Stores location of starting point of word.
-    private int    bonus; // bonus for using all letters.  50 for scrabble, 35 for WWF
+        
+    private static volatile boolean killAllNow = false; // stops active threads when pulled high
 
-    private static final int scrabbleBonus = 50, wwfBonus = 35;
-
-    private static boolean isBusy()
+    private enum SearchType
     {
-        // Is the word finder class busy?
-        return (workers[0].alive || workers[1].alive || workers[2].alive);
+        Vertical,
+        Horizontal, 
+        NewGame,
+        DiesImmediately        
     }
+    
+    private enum TileType
+    {
+        LetterDouble,
+        LetterTriple, 
+        WordDouble,
+        WordTriple,
+        None
+    }
+    
+    private enum cycle3
+    {
+        Hand, 
+        Wild,
+        Board
+    }
+    
+    private volatile boolean IsThreadThreading = false; // is the thread alive?
+    private final SearchType _SearchType; // what type is the thread? (either vert, horiz or NG)
+    private final boolean isWWF; // Whether or not the game type is WWF, matters for storing.
+    private final int[] MinConnectedLengths = new int[15];
+    private final int SurroundStart[] = new int[15];
+    private final int SurroundEnd[] = new int[15];
+    private int StartI = 0;
+    private int StartK = 0;    
+    private final String HandInput;
+    private final char BoardLetters[][] = new char[15][15];   
+    private final TileType[][] Tiles = new TileType[15][15]; // same with colors.
+    private final char[] PossibleWilds = new char[]
+    {
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+    };
+
+
+    private static final int 
+            BonusScrabble = 50,
+            BonusWWF = 35;
 
     // Statically updates all three threads.
     public static void update()
     {
-        kill();
-        game.clearOldAnswer();
+        WordFinder.kill();        
+        WordFinder._ScrabbleGame.clearOldAnswer();
+        WordFinder._ScrabbleGame.setGameText(haventFoundWordsMessage, "Thinking");
+        
         boolean isNewGame = true;
         
-        for(int i = 0; i<15; i++)
+        for (int i = 0; i < 15 && isNewGame; i++)
         {
-            for(int k = 0; k<15; k++)
+            for (int k = 0; k < 15 && isNewGame; k++)
             {                
-                tile[i][k] = game.tileColors[i][k];
-                let[i][k] = game.let[i][k];
-                if (let[i][k] != ' ') isNewGame = false;
+                if (WordFinder._ScrabbleGame.let[i][k] != ' ')
+                {
+                    isNewGame = false;
+                }
             }
+        }        
+
+        WordFinder.bestScore = -1;
+        WordFinder.bestCount = 0;
+        WordFinder.startTime = System.currentTimeMillis();
+
+        if (isNewGame)
+        {
+            WordFinder.workers[2] = new WordFinder(SearchType.NewGame);
+            WordFinder.workers[2].start();
         }
-
-        bestScore = -1;
-        input = game.input.getText();
-        isWWF = game.getDictType().equals(Dictionary.TYPEWWF);
-
-        game.setGameText(haventFoundWordsMessage, "Thinking");
-        startTime = System.currentTimeMillis();
-
-        if (isNewGame) workers[2] = new WordFinder(SearchNewGame);
         else
         {
-            workers[1] = new WordFinder(SearchHorizontal);
-            workers[0] = new WordFinder(SearchVertical);
+            WordFinder.workers[1] = new WordFinder(SearchType.Vertical);
+            WordFinder.workers[0] = new WordFinder(SearchType.Horizontal);
+            WordFinder.workers[1].start();
+            WordFinder.workers[0].start();
         }
     }
 
@@ -101,446 +120,500 @@ public class WordFinder extends Thread
     {
         killAllNow = true;
 
-        try { workers[0].join(); } catch (Exception ex) { System.out.println("V"); }
-        try { workers[1].join(); } catch (Exception ex) { System.out.println("H"); }
-        try { workers[2].join(); } catch (Exception ex) { System.out.println("N"); }
+        try { workers[0].join(); } catch (InterruptedException ex) { System.out.println("V"); }
+        try { workers[1].join(); } catch (InterruptedException ex) { System.out.println("H"); }
+        try { workers[2].join(); } catch (InterruptedException ex) { System.out.println("N"); }
 
         killAllNow = false;
 
-        game.setGameText("...","");
+        _ScrabbleGame.setGameText("...","");
     }
-
-    private void newBestWord(int score, String word, int x, int y)
+    
+    private static synchronized void threadDone()
     {
-
-        // Make sure the thread that is currently writing highscore finishes;
-        while (currentWritingHighScore != this)
+        if (workers[0].IsThreadThreading || workers[1].IsThreadThreading || workers[2].IsThreadThreading)
         {
-            if (score <= bestScore) return;
-            if (currentWritingHighScore == null && score > bestScore) currentWritingHighScore = this;
+            // Still Working
         }
+        else
+        {
+            String top = "Best word: " + new String(bestWord).toLowerCase() + " " + bestScore;
+            if (bestScore == -1) top = didntFindWordsMessage;
+            _ScrabbleGame.setGameText(
+                    top,
+                    "Found " + WordFinder.bestCount + " words in " + 
+                    ((System.currentTimeMillis() - startTime)/1000.0) + " seconds");        
+        }
+    }
+    
+    private static synchronized void newBestWord(
+            int score, 
+            char[] word, 
+            int i, 
+            int k,
+            SearchType t)
+    {
+        WordFinder.bestCount++;
+        
+        if (score <= bestScore) return;
+        
         bestScore = score;
         bestWord = word;
-        game.newBestAnswer(x, y, !type.equals(SearchHorizontal), word);
-        game.setGameText("Best word: " + bestWord.toLowerCase() + " " + bestScore, "Thinking");
-        currentWritingHighScore = null;
+       
+        if (t == SearchType.Vertical)
+        {
+            WordFinder._ScrabbleGame.newBestAnswer(k, i, true, word);            
+        }
+        else
+        {
+            WordFinder._ScrabbleGame.newBestAnswer(i, k, false, word);            
+        }
+        
+        WordFinder._ScrabbleGame.setGameText("Best word: " + new String(bestWord).toLowerCase() + " " + bestScore, "Thinking");
     }
+    
 
 
-    private WordFinder(String t)
-    {
-        type = t;
+
+
+    private WordFinder(SearchType t)
+    {            
+        this._SearchType = t;
         this.setPriority(Thread.MIN_PRIORITY);
-        this.start();
+        
+        for (int i = 0; i < 15; i++)
+        {
+            for (int k = 0; k < 15; k++)
+            {                     
+                Color c;
+                
+                switch (this._SearchType)
+                {
+                    case Horizontal:
+                        this.BoardLetters[i][k] = WordFinder._ScrabbleGame.let[i][k];
+                        c = WordFinder._ScrabbleGame.tileColors[i][k];
+                        break;
+                    default:
+                        this.BoardLetters[i][k] = WordFinder._ScrabbleGame.let[k][i];
+                        c = WordFinder._ScrabbleGame.tileColors[k][i];
+                        break;
+                }
+                
+                if (c == null) this.Tiles[i][k] = TileType.None;
+                else if (c.equals(Color.BLUE)) this.Tiles[i][k] = TileType.LetterDouble;
+                else if (c.equals(Color.GREEN)) this.Tiles[i][k] = TileType.LetterTriple;
+                else if (c.equals(Color.RED)) this.Tiles[i][k] = TileType.WordDouble;
+                else if (c.equals(Color.ORANGE)) this.Tiles[i][k] = TileType.WordTriple;
+                else this.Tiles[i][k] = TileType.None;                
+                
+            }
+        }
+        
+        this.HandInput = WordFinder._ScrabbleGame.input.getText();
+        this.isWWF = WordFinder._ScrabbleGame.getDictType() == Dictionary.DictType.WWF;
     }
-
-
+    
     @Override
     public void run()
     {
-        // Start working based on type.
-        if (type.equals(SearchHorizontal)) cycleHorizontal();
-        else if (type.equals(SearchVertical)) cycleVertical();
-        else if (type.equals(SearchNewGame)) cycleNewGame();
-
-        // Turn off alive boolean.
-        alive = false;
-
-        if (!type.equals(diesImmediately) && !isBusy())
+        this.IsThreadThreading = true;
+        this.runMethod();
+        this.IsThreadThreading = false;
+        if (SearchType.DiesImmediately != this._SearchType) WordFinder.threadDone();
+    }
+    
+    public void runMethod()
+    {
+        switch (this._SearchType)
         {
-            String top = "Best word: " + bestWord.toLowerCase() + " " + bestScore;
-            if (bestScore == -1) top = didntFindWordsMessage;
-            game.setGameText(top, "Search Complete: " + ((System.currentTimeMillis() - startTime)/1000.0) + " seconds");
+            case NewGame: this.cycleNewGame(); break;
+            case DiesImmediately: break;
+            default: this.cycle(); break;
         }
     }
-
+ 
 
     // If game is new, find set up (surroud and base word)
     private void cycleNewGame()
     {
-	int i = 7;
-	cLoc[0] = i;
-
-	for(int k = 0; k < 8; k++)
-	{
-            cLoc[1] = k;
-
-            // Repeat for any number of tiles used
-            for(int tiles = input.length(); tiles > 1; tiles--)
-            {
-                bonus = tiles == 7 ? isWWF ? wwfBonus : scrabbleBonus : 0;
-
-                int wordLength = tiles;
-
-                String baseWord = "";
-                String surround[] = new String[wordLength];
-
-                for(int l = 0; l < wordLength; l++)
-                {
-                    baseWord = baseWord + " ";
-                    surround[l] = " ";
-                }
-
-                // first part is if it contains center tile, second part is if its contained by board)
-                boolean connected = ((k<=7 && k+wordLength-1 >= 7) && (k+wordLength-1<15));
-
-                scoreSurround = new String[surround.length];
-                
-                // Must create a copy because later methods edit scoreSurround
-                System.arraycopy(surround, 0, scoreSurround, 0, surround.length);
-
-                if (connected) { findBases(input, baseWord, surround); }
-            }
-        }
-    }
-
-    // Find Vertical set ups (surround and base word)
-    private void cycleVertical()
-    {
+        final int notconlength = 30;
+        
+        Hand h = new Hand(this.HandInput);
+        
+        int k = 7;
+        
         for (int i = 0; i < 15; i++)
         {
-            cLoc[0] = i;
-            for (int k = 0; k < 14; k++)
+            this.MinConnectedLengths[i] = notconlength;            
+        }
+        for (int i = 0; i < 15; i++)
+        {
+            this.SurroundStart[i] = 0;
+            this.SurroundEnd[i] = 0;
+
+            boolean connected = i == 7;
+            // This means that this row is connected to puzzel, so we change the connect length requirement
+            if (connected)
             {
-                // For each starting position.
-                cLoc[1] = k;
-                // if we are in the first row or the space in the row above is blank
-                if (k == 0 || let[i][k - 1] == ' ')
+                for (int i2 = 0; i2 <= i; i2++)
                 {
-                    // Repeat for each tile length
-                    for (int tiles = input.length(); tiles > 0; tiles--)
-                    {
-                        boolean connected = false;
-
-                        bonus = tiles == 7 ? isWWF ? wwfBonus : scrabbleBonus : 0;
-
-                        int tilesUsed = 0;
-                        int wordLength = 0;
-
-                        // Continue word with existing tile or one from our hand.
-                        while (k + wordLength - 1 < 14 && tilesUsed < tiles)
-                        {
-                            if (let[i][k + wordLength] == ' ')
-                                tilesUsed++;
-                            wordLength++;
-                        }
-
-                        // When we are out of tiles, Continue word with existing tile only.
-                        while (k + wordLength - 1 < 14 && let[i][k + wordLength] != ' ')
-                        {
-                            wordLength++;
-                            connected = true;
-                        }
-
-                        // Make sure we use all of them, if not we will be repeating!
-                        if (tilesUsed == tiles)
-                        {
-                            String baseWord = "";
-                                    
-                            // Surround[] will store the surround chars, with a space where the
-                            // new char must be.  array length lines up with word length
-                            String surround[] = new String[wordLength];
-
-                            for (int l = wordLength-1; l > -1; l--)
-                            {
-                                baseWord = let[i][k + l] + baseWord;
-                                if (let[i][k + l] != ' ')
-                                {
-                                    surround[l] = String.valueOf(let[i][k + l]);
-                                    connected = true;
-                                }
-                                else
-                                {
-                                    String crossWord = "";
-
-                                    for (int newI = 0; newI < 15; newI++)
-                                    {
-                                        if (newI == i || let[newI][k + l] != ' ')
-                                            crossWord = crossWord + let[newI][k + l];
-                                        else
-                                        {
-                                            if (newI < i) { crossWord = ""; }
-                                            else          { newI = 99999999; }
-                                        }
-                                    }
-
-                                    surround[l] = crossWord;
-                                    if (crossWord.length() > 1)
-                                        connected = true;
-                                }
-                            }
-
-                            if (connected && baseWord.length() > 1)
-                            {
-                                scoreSurround = new String[surround.length];
-                                System.arraycopy(surround, 0, scoreSurround, 0, surround.length);
-                                findBases(input, baseWord, surround);
-                            }
-                        }
-                    }
+                    this.MinConnectedLengths[i - i2] = Math.min(this.MinConnectedLengths[i - i2], i2 + 1);                        
                 }
             }
         }
-    }
-
-
-    // Find Horizontal set ups (surround and base word)
-    private void cycleHorizontal()
-    {
         for (int i = 0; i < 14; i++)
         {
-            cLoc[0] = i;
-            for (int k = 0; k < 15; k++)
+            if (
+                    (this.MinConnectedLengths[i] < notconlength) &&
+                    ((i == 0) || (this.BoardLetters[i - 1][k] == ' '))
+               )
             {
-                cLoc[1] = k;
-                if (i == 0 || let[i - 1][k] == ' ')
+                this.StartI = i;
+                this.StartK = k;
+                this.cycle2(
+                        i,
+                        k, 
+                        Dictionary._WordInfo, 
+                        h, 
+                        0, 
+                        0, 
+                        1);                    
+            }
+        }
+    }
+
+    // Find Horizontal set ups (surround and base word)
+    private void cycle()
+    {            
+        final int notconlength = 30;
+        
+        Hand h = new Hand(this.HandInput);
+        
+        for (int k = 0; k < 15; k++)
+        {                        
+            for (int i = 0; i < 15; i++)
+            {
+                this.MinConnectedLengths[i] = notconlength;            
+            }
+            for (int i = 0; i < 15; i++)
+            {
+                this.SurroundStart[i] = 0;
+                this.SurroundEnd[i] = 0;
+                
+                boolean connected;
+                if (this.BoardLetters[i][k] == ' ')
                 {
-                    for (int tiles = input.length(); tiles > 0; tiles--)
+                    for (int newK = k - 1; newK >= 0; newK--)
                     {
-                        boolean connected = false;
-
-                        bonus = tiles == 7 ? isWWF ? wwfBonus : scrabbleBonus : 0;
-
-                        int tilesUsed = 0;
-                        int wordLength = 0;
-
-                        while (i + wordLength - 1 < 14 && tilesUsed < tiles)
-                        {
-                            if (let[i + wordLength][k] == ' ') { tilesUsed++; }
-                            wordLength++;
-                        }
-
-                        while (i + wordLength - 1 < 14 && let[i + wordLength][k] != ' ')
-                        {
-                            wordLength++;
-                            connected = true;
-                        }
-
-                        if (tilesUsed == tiles)
-                        {
-                            String baseWord = "";
-                            String surround[] = new String[wordLength];
-
-                            for (int l = wordLength-1; l>-1; l--)
-                            {
-                                baseWord = let[i+l][k] + baseWord;
-                                if (let[i + l][k] != ' ')
-                                {
-                                    surround[l] = String.valueOf(let[i + l][k]);
-                                    connected = true;
-                                }
-                                else
-                                {
-                                    String crossWord = "";
-
-                                    for (int newK = 0; newK < 15; newK++)
-                                    {
-                                        if (newK == k || let[i + l][newK] != ' ')
-                                            crossWord = crossWord + let[i + l][newK];
-                                        else
-                                        {
-                                            if (newK < k) { crossWord = ""; }
-                                            else          { newK = 99999999; }
-                                        }
-                                    }
-
-                                    surround[l] = crossWord;
-                                    if (crossWord.length() > 1)
-                                        connected = true;
-                                }
-                            }
-
-                            if (connected && baseWord.length() > 1)
-                            {
-                                scoreSurround = new String[surround.length];
-                                System.arraycopy(surround, 0, scoreSurround, 0, surround.length);
-                                findBases(input, baseWord, surround);
-                            }
-                        }
+                        if (this.BoardLetters[i][newK] == ' ') break;
+                        else this.SurroundStart[i] ++;
+                    }
+                    for (int newK = k + 1; newK < 15; newK++)
+                    {
+                        if (this.BoardLetters[i][newK] == ' ') break;
+                        else this.SurroundEnd[i] ++;
+                    }                    
+                    
+                    connected = (this.SurroundStart[i] + this.SurroundEnd[i]) > 0;                   
+                }
+                else connected = true;
+                                
+                // This means that this row is connected to puzzel, so we change the connect length requirement
+                if (connected)
+                {
+                    for (int i2 = 0; i2 <= i; i2++)
+                    {
+                        this.MinConnectedLengths[i - i2] = Math.min(this.MinConnectedLengths[i - i2], i2 + 1);                        
                     }
                 }
             }
-        }
-    }
-
-
-
-    // Finds bases for a given surround and base word + letters
-    // This method finds all possible tiles that can fill valid surrounds,
-    // thus elimanating the need to keep passing around surrounds.
-    private void findBases(String letters, String baseWord, String surround[]) {
-
-        if (killAllNow) return;
-
-        int i = 0;
-
-        while (i < baseWord.length() && surround[i].length() == 1) { i++; }
-
-        if (i == baseWord.length()) simplify(baseWord, letters);
-
-        else
-	{
-            String repeatLetters = "";
-            for(int p = letters.length()-1; p>-1; p--)
+            for (int i = 0; i < 14; i++)
             {
-                char current = letters.charAt(p);
-                if (repeatLetters.indexOf(current) < 0)
+                if (
+                        (this.MinConnectedLengths[i] < notconlength) &&
+                        ((i == 0) || (this.BoardLetters[i - 1][k] == ' '))
+                   )
                 {
-                    repeatLetters = repeatLetters + current;
-
-                    if (current != '?')
-                    {
-                        if(Dictionary.isValid(surround[i].replaceFirst(" ", "" + current)))
-                        {
-                            String newSurround[] = new String[surround.length];
-                            System.arraycopy(surround, 0, newSurround, 0, surround.length);
-                            newSurround[i] = "" + current;
-
-                            String newLetters = letters.replaceFirst("" + current, "");
-
-                            char newBase[] = baseWord.toCharArray();
-                            newBase[i] = current;
-                            String newBaseWord = String.copyValueOf(newBase);
-
-                            findBases(newLetters, newBaseWord, newSurround);
-                        }
-                    }
-                    else
-                    {
-                        String newLetters = letters.replaceFirst("\\?", "");
-                        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                        char alpha[] = alphabet.toCharArray();
-
-                        for (int al=0; al < alpha.length; al++)
-                        {
-                            current = alpha[al];
-
-                            if (Dictionary.isValid(surround[i].replaceFirst(" ", "" + current)))
-                            {
-                                String newSurround[] = new String[surround.length];
-                                System.arraycopy(surround, 0, newSurround, 0, surround.length);
-                                newSurround[i] = "" + current;
-
-                                char newBase[] = baseWord.toCharArray();
-                                newBase[i] = current;
-                                String newBaseWord = String.copyValueOf(newBase);
-
-                                findBases(newLetters, newBaseWord, newSurround);
-                            }
-                        }
-                    }
+                    this.StartI = i;
+                    this.StartK = k;
+                    this.cycle2(
+                            i,
+                            k, 
+                            Dictionary._WordInfo, 
+                            h, 
+                            0, 
+                            0, 
+                            1);                    
                 }
             }
         }
-    }
-
-    // Takes a word setup (word with spaces) and finds all words
-    private void simplify(String word, String letters) {
-
-        if (killAllNow || !Dictionary.b(word)) return;
-        if (word.indexOf(" ") < 0)  score(word);
-        else
-        {
-            String repeatLetters = "";
-            for (int p = 0; p < letters.length(); p++)
-            {
-                char current = letters.charAt(p);
-                if (repeatLetters.indexOf(current) < 0)
-                {
-                    repeatLetters = repeatLetters + current;
-
-                    if (current != '?')
-                    {
-                        String newWord = word.replaceFirst(" ", "" + current);
-                        String newLetters = letters.replaceFirst("" + current, "");
-                        simplify(newWord, newLetters);
-                    }
-                    else
-                    {
-                        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                        char alpha[] = alphabet.toCharArray();
-
-                        String newLetters = letters.replaceFirst("\\?", "");
-
-                        for (int al=0; al < alpha.length; al++)
-                        {
-                            String newWord = word.replaceFirst(" ", "" + alpha[al]);
-                            simplify(newWord, newLetters);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Scores a word
-    private void score(String baseWord)
-    {
-        int baseScore = 0; int multBase = 1;
-
-        for (int p = 0; p < scoreSurround.length; p++)
-        {
-            int a = 0, b = 0; if (!type.equals(SearchHorizontal)) b = p; else a = p;
-            char current = baseWord.charAt(p);
-
-            if      (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.BLUE)) baseScore += CS(current)    *1;
-            else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.GREEN)) baseScore += CS(current)*2;
-            else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.RED)) multBase = multBase*2;
-            else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.ORANGE)) multBase = multBase*3;
-
-            baseScore += CS(current);
-        }
-        int currentScore = bonus + baseScore*multBase;
-
-        for (int p = 0; p < scoreSurround.length; p++)
-            if (scoreSurround[p].length() > 1)
-            {
-                int crossScore = 0; int multCross = 1;
-
-                int a = 0, b = 0; if (type.equals(SearchHorizontal)) a = p; else b = p;
-                char current = baseWord.charAt(p);
-
-                char crossWord[] = scoreSurround[p].toCharArray();
-		for (int i = 0; i < crossWord.length; i++) { crossScore += CS(crossWord[i]); }
-                crossScore += CS(current);
-
-                if      (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.BLUE)) crossScore += CS(current)*1;
-                else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.GREEN)) crossScore += CS(current)*2;
-                else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.RED)) multCross = multCross*2;
-                else if (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.ORANGE)) multCross = multCross*3;
-
-                currentScore += crossScore*multCross;
-            }
-        System.out.println(this.type + " : " + currentScore);
-        newBestWord(currentScore, baseWord, cLoc[0], cLoc[1]);
-    }
-
+    }    
     
+    private void cycle2(
+            int i,
+            int k, 
+            WordInfo wf,
+            Hand h,
+            int cross_score,
+            int word_score,
+            int word_mult
+        )
+    {          
+        if (WordFinder.killAllNow)
+        {
+            // Kill It
+        } 
+        else if (this.BoardLetters[i][k] == ' ') // If open space
+        {            
+            for (char cc : h.AvailableTiles) // Iterate through hand
+            {                
+                if (cc == '?') // If hand is wild
+                {                    
+                    for (char c : PossibleWilds) // Iterate through letters
+                    {
+                        this.cycle3(
+                                i,
+                                k, 
+                                wf, 
+                                h, 
+                                cross_score, 
+                                word_score, 
+                                word_mult, 
+                                cycle3.Wild, 
+                                c);
+                    }           
+                }
+                else // If hand not wild
+                {
+                    this.cycle3(
+                            i,
+                            k, 
+                            wf, 
+                            h, 
+                            cross_score, 
+                            word_score, 
+                            word_mult, 
+                            cycle3.Hand, 
+                            cc);                
+                }            
+            }     
+        }
+        else // If Not Open Space
+        {
+            this.cycle3(
+                    i,
+                    k, 
+                    wf, 
+                    h, 
+                    cross_score, 
+                    word_score, 
+                    word_mult, 
+                    cycle3.Board, 
+                    this.BoardLetters[i][k]);                            
+        }
+    }    
     
+    private void cycle3(
+            int i,
+            int k, 
+            WordInfo wf,
+            Hand h,
+            int cross_score,
+            int word_score,
+            int word_mult,
+//////////////////////////////////////
+            cycle3 cyc,
+            char board_char            
+        )
+    {           
+        WordInfo next = wf.CheckChar(board_char);           
+        if (next != null)
+        {
+            int cross_mult = 1;
+            int letter_score = this.CS(board_char);
+
+            switch (this.Tiles[i][k])
+            {
+                case LetterDouble: letter_score *= 2; break;
+                case LetterTriple: letter_score *= 3; break;
+                case WordDouble: cross_mult = 2; break;
+                case WordTriple: cross_mult = 3; break;
+                default: break;
+            }
+                    
+            boolean surroundGood = false;
+            int sstart = this.SurroundStart[i];
+            int lens = sstart + this.SurroundEnd[i]; 
+
+            if (lens++ != 0)
+            {
+                char srnd[] = new char[lens];   
+                
+                for (int k2 = 0; k2 < lens; k2++)
+                {
+                    if (k2 == sstart) srnd[k2] = board_char;
+                    else srnd[k2] = this.BoardLetters[i][k + k2 - sstart];                        
+                }
+                if (Dictionary._WordInfo.CheckWord(srnd))
+                {
+                    surroundGood = true;
+                    int cross_score_instant = 0;
+
+                    for (int k2 = 0; k2 < lens; k2++)
+                        if (k2 != sstart) 
+                            cross_score_instant += this.CS(srnd[k2]);                        
+
+                    cross_score += (letter_score + cross_score_instant) * cross_mult;
+                }
+            }
+            else surroundGood = true; 
+            
+            if (surroundGood)
+            {   
+                word_score += letter_score;
+                word_mult *= cross_mult;
+
+                int wordlength = next.getDepth();
+                
+                if (next.IsWord)
+                {
+                    if (wordlength >= this.MinConnectedLengths[this.StartI])
+                    {
+                        if ((i == 14) || this.BoardLetters[i+1][k] == ' ')
+                        {                                    
+                            int tiles_used = h.TilesUsed + (cyc == cycle3.Board ? 0 : 1);
+                            
+                            if (tiles_used > 0)
+                            {
+                                int score = cross_score + word_score * word_mult;
+                                if (tiles_used == 7) score += this.isWWF 
+                                        ? WordFinder.BonusWWF 
+                                        : WordFinder.BonusScrabble;
+                                
+                                lens = h.WordSoFar.length;
+                                char[] wrd = new char[lens + 1];
+                                System.arraycopy(h.WordSoFar, 0, wrd, 0, lens); 
+                                wrd[lens] = board_char;
+
+                                WordFinder.newBestWord(
+                                        score, 
+                                        wrd, 
+                                        this.StartI, 
+                                        this.StartK, 
+                                        this._SearchType);
+                            }
+                        }
+                    }
+                }
+                if (next.CanContinue && i < 14)
+                {
+                    switch (cyc)
+                    {
+                        case Hand:
+                            this.cycle2(
+                                    i + 1, 
+                                    k, 
+                                    next, 
+                                    h.CloneAndRemove(board_char), 
+                                    cross_score,
+                                    word_score,
+                                    word_mult);   
+                            break;
+                        case Wild:
+                            this.cycle2(
+                                    i + 1, 
+                                    k, 
+                                    next, 
+                                    h.CloneAndRemoveWild(board_char), 
+                                    cross_score,
+                                    word_score,
+                                    word_mult);                   
+                            break;
+                        case Board:
+                            this.cycle2(
+                                    i + 1, 
+                                    k, 
+                                    next, 
+                                    h.CloneAndAddBoard(board_char), 
+                                    cross_score,
+                                    word_score,
+                                    word_mult);                   
+                            break;
+                        
+                    }
+                }
+            }
+        }
+    }
+        
     // Finds base score of a given letter
-    private static int CS(char y)
+    private int CS(char y)
     {
-        if (isWWF)
+        if (this.isWWF)
         {
-            if      (y=='a' || y=='e' || y=='i' || y=='o' || y=='r' || y=='s' || y=='t')	return 1;
-            else if (y=='b' || y=='c' || y=='f' || y=='m' || y=='p' || y=='w')                  return 4;
-            else if (y=='d' || y=='n' || y=='u' || y=='l')                                      return 2;
-            else if (y=='g' || y=='h' || y=='y')                                                return 3;
-            else if (y=='j' || y=='q' || y=='z')						return 10;
-            else if (y=='k' || y=='v')								return 5;
-            else if (y=='x') 									return 8;
-            else                                                                                return 0;
+            switch (y - 97)
+            {
+                case  0: return 1; // a
+                case  1: return 4; // b
+                case  2: return 4; // c
+                case  3: return 2; // d
+                case  4: return 1; // e
+                case  5: return 4; // f
+                case  6: return 3; // g
+                case  7: return 3; // h
+                case  8: return 1; // i
+                case  9: return 10; // j
+                case 10: return 5; // k
+                case 11: return 2; // l
+                case 12: return 4; // m
+                case 13: return 2; // n
+                case 14: return 1; // o
+                case 15: return 4; // p
+                case 16: return 10; // q
+                case 17: return 1; // r
+                case 18: return 1; // s
+                case 19: return 1; // t
+                case 20: return 2; // u
+                case 21: return 5; // v
+                case 22: return 4; // w
+                case 23: return 8; // x
+                case 24: return 3; // y
+                case 25: return 10; // z
+                default: return 0;
+            }
         }
         else
         {
-            if      (y=='e' || y=='a' || y=='i' || y=='o' || y=='n' || y=='r' || y=='t' || y=='l' || y=='s' || y=='u')	return 1;
-            else if (y=='f' || y=='h' || y=='v' || y=='w' || y=='y')							return 4;
-            else if (y=='b' || y=='c' || y=='m' || y=='p')                                                              return 3;
-            else if (y=='d' || y=='g') 											return 2;
-            else if (y=='j' || y=='x')											return 8;
-            else if (y=='q' || y=='z') 											return 10;
-            else if (y=='k')												return 5;
-            else                                                                                                        return 0;
+            switch (y - 97)
+            {
+                case  0: return 1; // a
+                case  1: return 3; // b
+                case  2: return 3; // c
+                case  3: return 2; // d
+                case  4: return 1; // e
+                case  5: return 4; // f
+                case  6: return 2; // g
+                case  7: return 4; // h
+                case  8: return 1; // i
+                case  9: return 8; // j
+                case 10: return 5; // k
+                case 11: return 1; // l
+                case 12: return 3; // m
+                case 13: return 1; // n
+                case 14: return 1; // o
+                case 15: return 3; // p
+                case 16: return 10; // q
+                case 17: return 1; // r
+                case 18: return 1; // s
+                case 19: return 1; // t
+                case 20: return 1; // u
+                case 21: return 4; // v
+                case 22: return 4; // w
+                case 23: return 8; // x
+                case 24: return 4; // y
+                case 25: return 10; // z
+                default: return 0;
+            }
         }
     }
 }
