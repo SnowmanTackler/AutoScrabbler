@@ -8,6 +8,11 @@ package autoscrabbler;
 import java.awt.Container;
 import java.awt.Dimension;
 
+/*
+ * Because I wanted to make the program work with as an applet and an application,
+ * this interface was required.
+ */
+
 public interface main
 {
     public String getSavedGames();

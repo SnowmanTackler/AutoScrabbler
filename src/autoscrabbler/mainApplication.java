@@ -12,19 +12,21 @@ import javax.swing.JOptionPane;
 
 public class mainApplication extends JFrame implements main
 {
+    // Entry point
     public static void main(String[] args)
     {
         new mainApplication();
     }
 
+    // Creates a frame, and if security check, starts program.
     public mainApplication()
     {
         super();
         super.setDefaultCloseOperation(EXIT_ON_CLOSE);
-        this.setVisible(true);
 
         String myComputer = System.getProperty("user.name");
 
+        // MUHAHA ONLY I CAN RUN THIS CLASS...UNLESS your reading this...
         if (myComputer.equals("SamSeifert"))
         {
             this.setVisible(true);
@@ -38,15 +40,16 @@ public class mainApplication extends JFrame implements main
         }
     }
 
-    @Override
-    public String getSavedGames() {return "";}
-
+    
+    
+    // Who doesn't like this method!
     @Override
     public Container getContainer()
     {
         return this;
     }
 
+    // Sets size of GLASS PANE to dimension. Adjusts with control bar height
     @Override
     public void setSize(Dimension d)
     {
@@ -57,6 +60,10 @@ public class mainApplication extends JFrame implements main
         super.setResizable(false);
     }
 
+    // Could add a file based save system.
+    @Override
+    public String getSavedGames() {return "";}
+    
     @Override
     public void save(String savedString)
     {

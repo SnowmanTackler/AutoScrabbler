@@ -10,60 +10,74 @@ import java.awt.Color;
 public class WordFinder extends Thread
 {
     private static ScrabbleGame game;
+    
     public static void myStart(ScrabbleGame runningScrabbleGame)
     {
+        // Static thread rememebers parent and children.
         game = runningScrabbleGame;
+        
+        // The threads need to be started 
         workers[0] = new WordFinder(diesImmediately);
         workers[1] = new WordFinder(diesImmediately);
         workers[2] = new WordFinder(diesImmediately);
     }
 
-
     private static WordFinder workers[] = new WordFinder[3];
-    private static long startTime;
-    private static boolean isWWF;
 
-    private static final String SearchVertical = "0xD5",
-                               SearchHorizontal = "0xEE",
+    private static long startTime; // Start time of a word
+    
+    private static boolean isWWF; // Whether or not the game type is WWF, matters for storing.
+    
+    private static final String SearchHorizontal = "0xD5", // Stores type of thread, should be int but I don't care
+                               SearchVertical = "0xEE",
                                SearchNewGame = "0x9A",
                                diesImmediately = "0x05",
-                               haventFoundWordsMessage = "I haven't found any words yet!",
-                               didntFindWordsMessage = "No valid words.";
+                               haventFoundWordsMessage = "I haven't found any words yet!", // Beginning message
+                               didntFindWordsMessage = "No valid words."; // other beginning message
 
-    private static String input;
+    private static String input; // Users hand
 
-    private static String let[][] = new String[15][15];
-    private static Color tile[][] = new Color[15][15];
+    private static char let[][] = new char[15][15]; // threads store their own board chars
+                                                    // so they don't change during "live score update"
+    
+    private static Color tile[][] = new Color[15][15]; // same with colors.
+    
+    private static volatile int bestScore = -1; // stores best scored word score
+    private static volatile String bestWord = ""; // stores best scored word
+    
+    private static volatile WordFinder currentWritingHighScore = null; // stores current thread editing high score.
+                                                                       // only one thread can edit at a time 
+    
+    private static boolean killAllNow = false; // stops active threads when pulled high
 
-    private static volatile int bestScore = -1;
-    private static volatile String bestWord = "";
-    private static volatile WordFinder currentWritingHighScore = null;
-    private static boolean killAllNow = false;
-
-    private boolean alive = true;
-    private String type;
-    private String scoreSurround[];
-    private int    cLoc[] = new int[2];
-    private int    bonus;
+    private boolean alive = true; // is the thread alive?
+    private String type; // what type is the thread? (either vert, horiz or NG)
+    private String scoreSurround[]; // Surround words
+    private int    cLoc[] = new int[2]; // Stores location of starting point of word.
+    private int    bonus; // bonus for using all letters.  50 for scrabble, 35 for WWF
 
     private static final int scrabbleBonus = 50, wwfBonus = 35;
 
     private static boolean isBusy()
     {
+        // Is the word finder class busy?
         return (workers[0].alive || workers[1].alive || workers[2].alive);
     }
 
+    // Statically updates all three threads.
     public static void update()
     {
         kill();
+        game.clearOldAnswer();
         boolean isNewGame = true;
+        
         for(int i = 0; i<15; i++)
         {
             for(int k = 0; k<15; k++)
-            {
-                tile[i][k] = game.tile[i][k].getColor();
-                let[i][k] = game.let[i][k].getText();
-                if (!let[i][k].equals(" ")) isNewGame = false;
+            {                
+                tile[i][k] = game.tileColors[i][k];
+                let[i][k] = game.let[i][k];
+                if (let[i][k] != ' ') isNewGame = false;
             }
         }
 
@@ -77,32 +91,23 @@ public class WordFinder extends Thread
         if (isNewGame) workers[2] = new WordFinder(SearchNewGame);
         else
         {
-            workers[1] = new WordFinder(SearchVertical);
-            workers[0] = new WordFinder(SearchHorizontal);
+            workers[1] = new WordFinder(SearchHorizontal);
+            workers[0] = new WordFinder(SearchVertical);
         }
     }
 
+    // Stops all threads.
     public static void kill()
     {
         killAllNow = true;
 
-        try { workers[0].join(); } catch (Exception ex) { System.out.println("Vert"); }
-        try { workers[1].join(); } catch (Exception ex) { System.out.println("Hoz"); }
-        try { workers[2].join(); } catch (Exception ex) { System.out.println("New"); }
+        try { workers[0].join(); } catch (Exception ex) { System.out.println("V"); }
+        try { workers[1].join(); } catch (Exception ex) { System.out.println("H"); }
+        try { workers[2].join(); } catch (Exception ex) { System.out.println("N"); }
 
         killAllNow = false;
 
-        game.clearOldAnswer();
         game.setGameText("...","");
-    }
-
-    public static void killWithoutClear()
-    {
-        killAllNow = true;
-        try { workers[0].join(); } catch (Exception ex) { System.out.println("Vert"); }
-        try { workers[1].join(); } catch (Exception ex) { System.out.println("Hoz"); }
-        try { workers[2].join(); } catch (Exception ex) { System.out.println("New"); }
-        killAllNow = false;
     }
 
     private void newBestWord(int score, String word, int x, int y)
@@ -114,7 +119,7 @@ public class WordFinder extends Thread
         }
         bestScore = score;
         bestWord = word;
-        game.newBestAnswer(x, y, !type.equals(SearchVertical), word);
+        game.newBestAnswer(x, y, !type.equals(SearchHorizontal), word);
         game.setGameText("Best word: " + bestWord.toLowerCase() + " " + bestScore, "Thinking");
         currentWritingHighScore = null;
     }
@@ -131,8 +136,8 @@ public class WordFinder extends Thread
     @Override
     public void run()
     {
-        if (type.equals(SearchVertical)) cycleVertical();
-        else if (type.equals(SearchHorizontal)) cycleHorizontal();
+        if (type.equals(SearchHorizontal)) cycleHorizontal();
+        else if (type.equals(SearchVertical)) cycleVertical();
         else if (type.equals(SearchNewGame)) cycleNewGame();
 
         alive = false;
@@ -146,7 +151,7 @@ public class WordFinder extends Thread
     }
 
 
-        // If game is new, find set up (surroud and base word)
+    // If game is new, find set up (surroud and base word)
     private void cycleNewGame() {
 	int i = 7;
 	cLoc[0] = i;
@@ -182,8 +187,8 @@ public class WordFinder extends Thread
         }
     }
 
-    // Find horizontal set ups (surround and base word)
-    private void cycleHorizontal()
+    // Find Vertical set ups (surround and base word)
+    private void cycleVertical()
     {
         for (int i = 0; i < 15; i++)
         {
@@ -191,7 +196,7 @@ public class WordFinder extends Thread
             for (int k = 0; k < 14; k++)
             {
                 cLoc[1] = k;
-                if (k == 0 || let[i][k - 1].equals(" "))
+                if (k == 0 || let[i][k - 1] == ' ')
                 {
                     for (int tiles = input.length(); tiles > 0; tiles--)
                     {
@@ -204,11 +209,12 @@ public class WordFinder extends Thread
 
                         while (k + wordLength - 1 < 14 && tilesUsed < tiles)
                         {
-                            if (let[i][k + wordLength].equals(" ")) { tilesUsed++; }
+                            if (let[i][k + wordLength] == ' ')
+                                tilesUsed++;
                             wordLength++;
                         }
 
-                        while (k + wordLength - 1 < 14 && !(let[i][k + wordLength].equals(" ")))
+                        while (k + wordLength - 1 < 14 && let[i][k + wordLength] != ' ')
                         {
                             wordLength++;
                             connected = true;
@@ -222,17 +228,19 @@ public class WordFinder extends Thread
                             for (int l = wordLength-1; l > -1; l--)
                             {
                                 baseWord = let[i][k + l] + baseWord;
-                                if (!(let[i][k + l].equals(" "))) { surround[l] = let[i][k + l]; connected = true; }
+                                if (let[i][k + l] != ' ')
+                                {
+                                    surround[l] = String.valueOf(let[i][k + l]);
+                                    connected = true;
+                                }
                                 else
                                 {
                                     String crossWord = "";
 
                                     for (int newI = 0; newI < 15; newI++)
                                     {
-                                        if (newI == i || !(let[newI][k + l].equals(" ")))
-                                        {
+                                        if (newI == i || let[newI][k + l] != ' ')
                                             crossWord = crossWord + let[newI][k + l];
-                                        }
                                         else
                                         {
                                             if (newI < i) { crossWord = ""; }
@@ -241,7 +249,8 @@ public class WordFinder extends Thread
                                     }
 
                                     surround[l] = crossWord;
-                                    if (crossWord.length() > 1) { connected = true; }
+                                    if (crossWord.length() > 1)
+                                        connected = true;
                                 }
                             }
 
@@ -258,15 +267,17 @@ public class WordFinder extends Thread
         }
     }
 
-    // Find vertical set ups (surround and base word)
-    private void cycleVertical() {
+
+    // Find Horizontal set ups (surround and base word)
+    private void cycleHorizontal()
+    {
         for (int i = 0; i < 14; i++)
         {
             cLoc[0] = i;
             for (int k = 0; k < 15; k++)
             {
                 cLoc[1] = k;
-                if (i == 0 || let[i - 1][k].equals(" "))
+                if (i == 0 || let[i - 1][k] == ' ')
                 {
                     for (int tiles = input.length(); tiles > 0; tiles--)
                     {
@@ -279,11 +290,11 @@ public class WordFinder extends Thread
 
                         while (i + wordLength - 1 < 14 && tilesUsed < tiles)
                         {
-                            if (let[i + wordLength][k].equals(" ")) { tilesUsed++; }
+                            if (let[i + wordLength][k] == ' ') { tilesUsed++; }
                             wordLength++;
                         }
 
-                        while (i + wordLength - 1 < 14 && !(let[i + wordLength][k].equals(" ")))
+                        while (i + wordLength - 1 < 14 && let[i + wordLength][k] != ' ')
                         {
                             wordLength++;
                             connected = true;
@@ -297,17 +308,19 @@ public class WordFinder extends Thread
                             for (int l = wordLength-1; l>-1; l--)
                             {
                                 baseWord = let[i+l][k] + baseWord;
-                                if (!(let[i + l][k].equals(" "))) { surround[l] = let[i + l][k]; connected = true; }
+                                if (let[i + l][k] != ' ')
+                                {
+                                    surround[l] = String.valueOf(let[i + l][k]);
+                                    connected = true;
+                                }
                                 else
                                 {
                                     String crossWord = "";
 
                                     for (int newK = 0; newK < 15; newK++)
                                     {
-                                        if (newK == k || !(let[i + l][newK].equals(" ")))
-                                        {
+                                        if (newK == k || let[i + l][newK] != ' ')
                                             crossWord = crossWord + let[i + l][newK];
-                                        }
                                         else
                                         {
                                             if (newK < k) { crossWord = ""; }
@@ -316,8 +329,9 @@ public class WordFinder extends Thread
                                     }
 
                                     surround[l] = crossWord;
-                                    if (crossWord.length() > 1) { connected = true; }
-                                   }
+                                    if (crossWord.length() > 1)
+                                        connected = true;
+                                }
                             }
 
                             if (connected && baseWord.length() > 1)
@@ -332,6 +346,8 @@ public class WordFinder extends Thread
             }
         }
     }
+
+
 
     // Finds bases for a given surround and base word + letters
     private void findBases(String letters, String baseWord, String surround[]) {
@@ -446,7 +462,7 @@ public class WordFinder extends Thread
 
         for (int p = 0; p < scoreSurround.length; p++)
         {
-            int a = 0, b = 0; if (!type.equals(SearchVertical)) b = p; else a = p;
+            int a = 0, b = 0; if (!type.equals(SearchHorizontal)) b = p; else a = p;
             char current = baseWord.charAt(p);
 
             if      (tile[cLoc[0]+a][cLoc[1]+b].equals(Color.BLUE)) baseScore += CS(current)    *1;
@@ -463,7 +479,7 @@ public class WordFinder extends Thread
             {
                 int crossScore = 0; int multCross = 1;
 
-                int a = 0, b = 0; if (type.equals(SearchVertical)) a = p; else b = p;
+                int a = 0, b = 0; if (type.equals(SearchHorizontal)) a = p; else b = p;
                 char current = baseWord.charAt(p);
 
                 char crossWord[] = scoreSurround[p].toCharArray();
@@ -477,9 +493,12 @@ public class WordFinder extends Thread
 
                 currentScore += crossScore*multCross;
             }
+        System.out.println(this.type + " : " + currentScore);
         newBestWord(currentScore, baseWord, cLoc[0], cLoc[1]);
     }
 
+    
+    
     // Finds base score of a given letter
     private static int CS(char y)
     {

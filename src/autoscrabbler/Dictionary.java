@@ -11,14 +11,23 @@ import java.io.InputStreamReader;
 
 public class Dictionary
 {
+    // Displayed Dictionary Names
     public static final String TYPETWL = "TWL",
                                TYPESOWPODS = "SOWPODS",
                                TYPEWWF = "WWF";
+    
+    // Displayed Dictionary Names in an ARRAY!
     public static final String[] dictNames = {TYPETWL, TYPESOWPODS, TYPEWWF};
 
+    // Dictionaries will be loaded into here!
+    // Dimensions: word length, starting letter, index#
     private static String allDictWords[][][];
+    
+    // Remembers which dictionary is loaded. Number represents index in dictNames array.
     private static int currentType = -1;
 
+
+    // Loads a dictionary to RAM if it isn't already loaded.  Forgets old dictionaries.
     public static void select(int type)
     {
         type = Math.abs(type) % dictNames.length;
@@ -31,12 +40,14 @@ public class Dictionary
 
     public static void load(String dictType)
     {
+        // Create new pointer
         allDictWords = new String[14][][];
         try
         {
             String word;
             int size = 0;
 
+            // will store length of the specific word lists.
             int lengthSize[][] = new int[14][];
 
             for (int i = 0; i < allDictWords.length; i++)
@@ -48,11 +59,24 @@ public class Dictionary
 
             BufferedReader dict;
 
-            if (dictType.equals(TYPESOWPODS)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/SOWPODS")));
-            else if (dictType.equals(TYPEWWF)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/WWF")));
-            else if (dictType.equals(TYPETWL)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/TWL")));
-            else { dict = new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/TWL"))); System.out.println("Dictionary - Can't find dict: " + dictType + ".  Using TWL"); }
+            // Pick the dictionary.
+            if (dictType.equals(TYPESOWPODS))
+                dict =  new BufferedReader(new InputStreamReader(
+                        Dictionary.class.getResourceAsStream("/resources/SOWPODS")));
+            else if (dictType.equals(TYPEWWF))
+                dict =  new BufferedReader(new InputStreamReader(
+                        Dictionary.class.getResourceAsStream("/resources/WWF")));
+            else if (dictType.equals(TYPETWL)) 
+                dict =  new BufferedReader(new InputStreamReader(
+                    Dictionary.class.getResourceAsStream("/resources/TWL")));
+            else
+            {
+                dict = new BufferedReader(new InputStreamReader(
+                    Dictionary.class.getResourceAsStream("/resources/TWL")));
+                System.out.println("Dictionary - Can't find dict: " + dictType + ".  Using TWL");
+            }
 
+            // Read it lines, add 1 to corresponding lengthSize[][]
             word = dict.readLine();
             while(word != null)
             {
@@ -67,12 +91,8 @@ public class Dictionary
                 word = dict.readLine();
             }
             dict.close();
-
-            if (dictType.equals(TYPESOWPODS)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/SOWPODS")));
-            else if (dictType.equals(TYPEWWF)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/WWF")));
-            else if (dictType.equals(TYPETWL)) dict =  new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/TWL")));
-            else { dict = new BufferedReader(new InputStreamReader(Dictionary.class.getResourceAsStream("/resources/TWL"))); System.out.println("Dictionary - Can't find dict: " + dictType + ".  Using TWL"); }
-
+            
+            // Initialize final dimension of dictionary array
             int indexOfWordLengths[][] = new int[14][];
             for (int i = 0; i < allDictWords.length ; i++)
             {
@@ -84,6 +104,21 @@ public class Dictionary
                 }
             }
 
+            // Reopen file
+            if (dictType.equals(TYPESOWPODS))
+                dict =  new BufferedReader(new InputStreamReader(
+                        Dictionary.class.getResourceAsStream("/resources/SOWPODS")));
+            else if (dictType.equals(TYPEWWF))
+                dict =  new BufferedReader(new InputStreamReader(
+                        Dictionary.class.getResourceAsStream("/resources/WWF")));
+            else if (dictType.equals(TYPETWL)) 
+                dict =  new BufferedReader(new InputStreamReader(
+                    Dictionary.class.getResourceAsStream("/resources/TWL")));
+            else
+                dict = new BufferedReader(new InputStreamReader(
+                    Dictionary.class.getResourceAsStream("/resources/TWL")));
+
+            // Start loading into memory
             for(int i = 0; i < size; i++)
             {
                 word = dict.readLine().toLowerCase();
@@ -104,48 +139,46 @@ public class Dictionary
 
 
     // Returns true if the first part of the string (before the first space) can be made into a valid word of appropriate length
-    public static boolean b(String aaab) {
-        int aaaa = aaab.indexOf(" ");
-        if (aaaa == 0) return true;
-        else if (aaaa < 0)  return isValid(aaab);
+    // Uses quick search
+    public static boolean b(String word)
+    {
+        int firstSpaceIndex = word.indexOf(" ");
+        if (firstSpaceIndex == 0) return true;
+        else if (firstSpaceIndex < 0)  return isValid(word);
         else
         {
-            int aaar = Character.getNumericValue(aaab.charAt(0)) - 10;
-            String aaac = aaab.substring(0, aaaa);
-            aaac = aaac.toLowerCase();
-            boolean aaae = false;
-            int aaad = aaab.length() - 2;
-            int aaa = 0, aaaf = allDictWords[aaad][aaar].length - 1, aaag;
-            while (aaaf >= aaa && !aaae)
+            int startingLetter = Character.getNumericValue(word.charAt(0)) - 10;
+            String adjustedWord = word.substring(0, firstSpaceIndex).toLowerCase();
+            boolean found = false;
+            int length = word.length() - 2;
+            int min = 0, max = allDictWords[length][startingLetter].length - 1, mid;
+            while (max >= min && !found)
             {
-                aaag = (aaa + aaaf) / 2;
-                if (aaac.compareTo(allDictWords[aaad][aaar][aaag].substring(0, aaaa)) < 0) aaaf = aaag - 1;
-                else if (aaac.compareTo(allDictWords[aaad][aaar][aaag].substring(0, aaaa)) > 0) aaa = aaag + 1;
-                else aaae = true;
+                mid = (min + max) / 2;
+                if (adjustedWord.compareTo(allDictWords[length][startingLetter][mid].substring(0, firstSpaceIndex)) < 0) max = mid - 1;
+                else if (adjustedWord.compareTo(allDictWords[length][startingLetter][mid].substring(0, firstSpaceIndex)) > 0) min = mid + 1;
+                else found = true;
             }
-            return aaae;
+            return found;
         }
     }
 
     // Returns true if the word exists
-    public static boolean isValid(String input)
+    // Uses quick search algorithm
+    public static boolean isValid(String word)
     {
-        String guess = input.toLowerCase();
+        int startingLetter = Character.getNumericValue(word.charAt(0)) - 10;
+        String adjustedWord = word.toLowerCase();
         boolean found = false;
-        int size = guess.length()-2;
-        int startLet = Character.getNumericValue(input.charAt(0)) - 10;
-
-        int first = 0, last = allDictWords[size][startLet].length - 1, middle;
-
-        while (last >= first && !found)
+        int length = word.length() - 2;
+        int min = 0, max = allDictWords[length][startingLetter].length - 1, mid;
+        while (max >= min && !found)
         {
-            middle = (first + last) / 2;
-
-            if (guess.compareTo(allDictWords[size][startLet][middle]) < 0)      { last = middle - 1; }
-            else if (guess.compareTo(allDictWords[size][startLet][middle]) > 0)	{ first = middle + 1; }
-            else                                                                { found = true;}
+            mid = (min + max) / 2;
+            if (adjustedWord.compareTo(allDictWords[length][startingLetter][mid]) < 0) max = mid - 1;
+            else if (adjustedWord.compareTo(allDictWords[length][startingLetter][mid]) > 0) min = mid + 1;
+            else found = true;
         }
-
         return found;
     }
 }

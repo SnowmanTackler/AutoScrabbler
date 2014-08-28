@@ -11,6 +11,7 @@ import javax.swing.JApplet;
 
 public class mainAppletCookie extends JApplet implements main
 {
+    // HTML Cookie name
     private String cookieName = "SavedGames";
 
     // HTML SAVE COOKIE METHODS
@@ -18,6 +19,7 @@ public class mainAppletCookie extends JApplet implements main
     public void dispose() { System.exit(0); }
 
 
+    // Make sure I'm on my website, then start initializing crap!
     @Override
     public void init()
     {
@@ -27,6 +29,7 @@ public class mainAppletCookie extends JApplet implements main
             mainParent.myStart(this);
     }
 
+    // Read and return saved cookie
     @Override
     public String getSavedGames()
     {
@@ -34,12 +37,14 @@ public class mainAppletCookie extends JApplet implements main
         return CookieController.readCookie(cookieName);
     }
 
+    // So mainparent knows where to draw.
     @Override
     public Container getContainer()
     {
         return this;
     }
-
+    
+    // SAVES GAMES, savePermCookie required because cookies won't stick in some browsers (namely safari)
     @Override
     public void save(String savedString)
     {
