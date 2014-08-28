@@ -27,7 +27,7 @@ public class mainApplication extends JFrame implements main
         String myComputer = System.getProperty("user.name");
 
         // MUHAHA ONLY I CAN RUN THIS CLASS...UNLESS your reading this...
-        if (myComputer.equals("SamSeifert"))
+        if (myComputer.equals("Sam"))
         {
             this.setVisible(true);
             mainParent.myStart(this);

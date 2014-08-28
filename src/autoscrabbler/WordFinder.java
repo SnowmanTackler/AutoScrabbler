@@ -112,6 +112,8 @@ public class WordFinder extends Thread
 
     private void newBestWord(int score, String word, int x, int y)
     {
+
+        // Make sure the thread that is currently writing highscore finishes;
         while (currentWritingHighScore != this)
         {
             if (score <= bestScore) return;
@@ -136,10 +138,12 @@ public class WordFinder extends Thread
     @Override
     public void run()
     {
+        // Start working based on type.
         if (type.equals(SearchHorizontal)) cycleHorizontal();
         else if (type.equals(SearchVertical)) cycleVertical();
         else if (type.equals(SearchNewGame)) cycleNewGame();
 
+        // Turn off alive boolean.
         alive = false;
 
         if (!type.equals(diesImmediately) && !isBusy())
@@ -152,7 +156,8 @@ public class WordFinder extends Thread
 
 
     // If game is new, find set up (surroud and base word)
-    private void cycleNewGame() {
+    private void cycleNewGame()
+    {
 	int i = 7;
 	cLoc[0] = i;
 
@@ -160,6 +165,7 @@ public class WordFinder extends Thread
 	{
             cLoc[1] = k;
 
+            // Repeat for any number of tiles used
             for(int tiles = input.length(); tiles > 1; tiles--)
             {
                 bonus = tiles == 7 ? isWWF ? wwfBonus : scrabbleBonus : 0;
@@ -169,7 +175,7 @@ public class WordFinder extends Thread
                 String baseWord = "";
                 String surround[] = new String[wordLength];
 
-                for(int l = 0; l<wordLength; l++)
+                for(int l = 0; l < wordLength; l++)
                 {
                     baseWord = baseWord + " ";
                     surround[l] = " ";
@@ -178,8 +184,9 @@ public class WordFinder extends Thread
                 // first part is if it contains center tile, second part is if its contained by board)
                 boolean connected = ((k<=7 && k+wordLength-1 >= 7) && (k+wordLength-1<15));
 
-
                 scoreSurround = new String[surround.length];
+                
+                // Must create a copy because later methods edit scoreSurround
                 System.arraycopy(surround, 0, scoreSurround, 0, surround.length);
 
                 if (connected) { findBases(input, baseWord, surround); }
@@ -195,9 +202,12 @@ public class WordFinder extends Thread
             cLoc[0] = i;
             for (int k = 0; k < 14; k++)
             {
+                // For each starting position.
                 cLoc[1] = k;
+                // if we are in the first row or the space in the row above is blank
                 if (k == 0 || let[i][k - 1] == ' ')
                 {
+                    // Repeat for each tile length
                     for (int tiles = input.length(); tiles > 0; tiles--)
                     {
                         boolean connected = false;
@@ -207,6 +217,7 @@ public class WordFinder extends Thread
                         int tilesUsed = 0;
                         int wordLength = 0;
 
+                        // Continue word with existing tile or one from our hand.
                         while (k + wordLength - 1 < 14 && tilesUsed < tiles)
                         {
                             if (let[i][k + wordLength] == ' ')
@@ -214,15 +225,20 @@ public class WordFinder extends Thread
                             wordLength++;
                         }
 
+                        // When we are out of tiles, Continue word with existing tile only.
                         while (k + wordLength - 1 < 14 && let[i][k + wordLength] != ' ')
                         {
                             wordLength++;
                             connected = true;
                         }
 
+                        // Make sure we use all of them, if not we will be repeating!
                         if (tilesUsed == tiles)
                         {
                             String baseWord = "";
+                                    
+                            // Surround[] will store the surround chars, with a space where the
+                            // new char must be.  array length lines up with word length
                             String surround[] = new String[wordLength];
 
                             for (int l = wordLength-1; l > -1; l--)
@@ -350,6 +366,8 @@ public class WordFinder extends Thread
 
 
     // Finds bases for a given surround and base word + letters
+    // This method finds all possible tiles that can fill valid surrounds,
+    // thus elimanating the need to keep passing around surrounds.
     private void findBases(String letters, String baseWord, String surround[]) {
 
         if (killAllNow) return;
@@ -416,7 +434,7 @@ public class WordFinder extends Thread
         }
     }
 
-    // Takes a word setup and finds all words
+    // Takes a word setup (word with spaces) and finds all words
     private void simplify(String word, String letters) {
 
         if (killAllNow || !Dictionary.b(word)) return;

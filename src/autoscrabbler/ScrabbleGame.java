@@ -218,7 +218,7 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
         if (selectShowing)
         {
             bufferGraphics.setColor(Color.DARK_GRAY);
-            bufferGraphics.fillRect(tempX-3, tempY-3, RECT_DIM+6, RECT_DIM+6);            
+            bufferGraphics.fillRect(tempX-3+GAP, tempY-3+GAP, RECT_DIM+6, RECT_DIM+6);            
         }
         
         // Show tile rectangles and texts
@@ -226,8 +226,8 @@ public class ScrabbleGame extends Canvas implements ActionListener, MouseListene
         for(int i = 0; i<15; i++)
             for(int k = 0; k<15; k++)
             {
-                tempX = (RECT_DIM + GAP)*i;
-                tempY = (RECT_DIM+GAP)*k;
+                tempX = (RECT_DIM + GAP)*i+GAP;
+                tempY = (RECT_DIM+GAP)*k+GAP;
                 bufferGraphics.setColor(tileColors[i][k]);
                 bufferGraphics.fillRect(tempX, tempY, RECT_DIM, RECT_DIM);
                 bufferGraphics.setColor(letColors[i][k]);
